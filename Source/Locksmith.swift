@@ -7,7 +7,7 @@ public typealias PerformRequestClosureType = (_ requestReference: CFDictionary, 
 
 // MARK: - Locksmith
 public struct Locksmith {
-    public static func loadDataForUserAccount(userAccount: String, inService service: String = LocksmithDefaultService) -> [String: AnyObject]? {
+    public static func loadData(for userAccount: String, inService service: String = LocksmithDefaultService) -> [String: AnyObject]? {
         struct ReadRequest: GenericPasswordSecureStorable, ReadableSecureStorable {
             let service: String
             let account: String
@@ -17,7 +17,7 @@ public struct Locksmith {
         return request.readFromSecureStore()?.data
     }
     
-    public static func saveData(data: [String: AnyObject], forUserAccount userAccount: String, inService service: String = LocksmithDefaultService) throws {
+    public static func saveData(_ data: [String: AnyObject], forUserAccount userAccount: String, inService service: String = LocksmithDefaultService) throws {
         struct CreateRequest: GenericPasswordSecureStorable, CreateableSecureStorable {
             let service: String
             let account: String
@@ -28,7 +28,7 @@ public struct Locksmith {
         return try request.createInSecureStore()
     }
     
-    public static func deleteDataForUserAccount(userAccount: String, inService service: String = LocksmithDefaultService) throws {
+    public static func deleteData(for userAccount: String, inService service: String = LocksmithDefaultService) throws {
         struct DeleteRequest: GenericPasswordSecureStorable, DeleteableSecureStorable {
             let service: String
             let account: String
@@ -38,7 +38,7 @@ public struct Locksmith {
         return try request.deleteFromSecureStore()
     }
     
-    public static func updateData(data: [String: AnyObject], forUserAccount userAccount: String, inService service: String = LocksmithDefaultService) throws {
+    public static func updateData(_ data: [String: AnyObject], forUserAccount userAccount: String, inService service: String = LocksmithDefaultService) throws {
         struct UpdateRequest: GenericPasswordSecureStorable, CreateableSecureStorable {
             let service: String
             let account: String
@@ -71,7 +71,7 @@ public extension SecureStorable {
     }
     
     @discardableResult
-    fileprivate func performSecureStorageAction(closure: PerformRequestClosureType, secureStoragePropertyDictionary: [String: AnyObject]) throws -> [String: AnyObject]? {
+    fileprivate func performSecureStorageAction(_ closure: PerformRequestClosureType, secureStoragePropertyDictionary: [String: AnyObject]) throws -> [String: AnyObject]? {
         var result: AnyObject?
         let request = secureStoragePropertyDictionary
         let requestReference = request as CFDictionary
@@ -93,7 +93,7 @@ public extension SecureStorable {
             return nil
         }
         
-        if dictionary[String(kSecValueData)] as? NSData == nil {
+        if dictionary[String(kSecValueData)] as? Data == nil {
             return nil
         }
         
@@ -310,12 +310,12 @@ public protocol GenericPasswordSecureStorable: AccountBasedSecureStorable, Descr
     var service: String { get }
     
     // Optional properties
-    var generic: NSData? { get }
+    var generic: Data? { get }
 }
 
 // Add extension to allow for optional properties in protocol
 public extension GenericPasswordSecureStorable {
-    var generic: NSData? { return nil}
+    var generic: Data? { return nil}
 }
 
 // dear god what have i done...
@@ -326,8 +326,8 @@ public extension GenericPasswordSecureStorableResultType {
         return resultDictionary[String(kSecAttrService)] as! String
     }
     
-    var generic: NSData? {
-        return resultDictionary[String(kSecAttrGeneric)] as? NSData
+    var generic: Data? {
+        return resultDictionary[String(kSecAttrGeneric)] as? Data
     }
 }
 
@@ -336,7 +336,7 @@ public extension SecureStorable where Self : GenericPasswordSecureStorable {
         var dictionary = [String: AnyObject?]()
         
         dictionary[String(kSecAttrService)] = service as AnyObject
-        dictionary[String(kSecAttrGeneric)] = generic
+        dictionary[String(kSecAttrGeneric)] = generic as AnyObject?
         dictionary[String(kSecClass)] = LocksmithSecurityClass.genericPassword.rawValue as AnyObject
         
         dictionary = Dictionary(initial: dictionary, toMerge: describableSecureStoragePropertyDictionary)
@@ -380,7 +380,7 @@ public extension InternetPasswordSecureStorable {
 public protocol InternetPasswordSecureStorableResultType: AccountBasedSecureStorableResultType, DescribableSecureStorableResultType, CommentableSecureStorableResultType, CreatorDesignatableSecureStorableResultType, TypeDesignatableSecureStorableResultType, IsInvisibleAssignableSecureStorableResultType, IsNegativeAssignableSecureStorableResultType {}
 
 public extension InternetPasswordSecureStorableResultType {
-    private func stringFromResultDictionary(key: CFString) -> String? {
+    fileprivate func stringFromResultDictionary(key: CFString) -> String? {
         return resultDictionary[String(key)] as? String
     }
     
@@ -475,7 +475,7 @@ struct GenericPasswordResult: GenericPasswordSecureStorableResultType {
 public extension ReadableSecureStorable where Self : GenericPasswordSecureStorable {
     func readFromSecureStore() -> GenericPasswordSecureStorableResultType? {
         do {
-            if let result = try performSecureStorageAction(closure: performReadRequestClosure, secureStoragePropertyDictionary: asReadableSecureStoragePropertyDictionary) {
+            if let result = try performSecureStorageAction(performReadRequestClosure, secureStoragePropertyDictionary: asReadableSecureStoragePropertyDictionary) {
                 return GenericPasswordResult(resultDictionary: result)
             } else {
                 return nil
@@ -489,7 +489,7 @@ public extension ReadableSecureStorable where Self : GenericPasswordSecureStorab
 public extension ReadableSecureStorable where Self : InternetPasswordSecureStorable {
     func readFromSecureStore() -> InternetPasswordSecureStorableResultType? {
         do {
-            if let result = try performSecureStorageAction(closure: performReadRequestClosure, secureStoragePropertyDictionary: asReadableSecureStoragePropertyDictionary) {
+            if let result = try performSecureStorageAction(performReadRequestClosure, secureStoragePropertyDictionary: asReadableSecureStoragePropertyDictionary) {
                 return InternetPasswordResult(resultDictionary: result)
             } else {
                 return nil
@@ -541,7 +541,7 @@ public extension CreateableSecureStorable where Self : GenericPasswordSecureStor
 
 public extension CreateableSecureStorable where Self : GenericPasswordSecureStorable {
     func createInSecureStore() throws {
-        try performSecureStorageAction(closure: performCreateRequestClosure, secureStoragePropertyDictionary: asCreateableSecureStoragePropertyDictionary)
+        try performSecureStorageAction(performCreateRequestClosure, secureStoragePropertyDictionary: asCreateableSecureStoragePropertyDictionary)
     }
     func updateInSecureStore() throws {
         try self.updateInSecureStore(query: self.asCreateableSecureStoragePropertyDictionary)
@@ -566,7 +566,7 @@ public extension CreateableSecureStorable {
 
 public extension CreateableSecureStorable where Self : InternetPasswordSecureStorable {
     func createInSecureStore() throws {
-        try performSecureStorageAction(closure: performCreateRequestClosure, secureStoragePropertyDictionary: asCreateableSecureStoragePropertyDictionary)
+        try performSecureStorageAction(performCreateRequestClosure, secureStoragePropertyDictionary: asCreateableSecureStoragePropertyDictionary)
     }
     func updateInSecureStore() throws {
         try self.updateInSecureStore(query: self.asCreateableSecureStoragePropertyDictionary)
@@ -595,13 +595,13 @@ public extension DeleteableSecureStorable where Self : InternetPasswordSecureSto
 
 public extension DeleteableSecureStorable where Self : GenericPasswordSecureStorable {
     func deleteFromSecureStore() throws {
-        try performSecureStorageAction(closure: performDeleteRequestClosure, secureStoragePropertyDictionary: asDeleteableSecureStoragePropertyDictionary)
+        try performSecureStorageAction(performDeleteRequestClosure, secureStoragePropertyDictionary: asDeleteableSecureStoragePropertyDictionary)
     }
 }
 
 public extension DeleteableSecureStorable where Self : InternetPasswordSecureStorable {
     func deleteFromSecureStore() throws {
-        try performSecureStorageAction(closure: performDeleteRequestClosure, secureStoragePropertyDictionary: asDeleteableSecureStoragePropertyDictionary)
+        try performSecureStorageAction(performDeleteRequestClosure, secureStoragePropertyDictionary: asDeleteableSecureStoragePropertyDictionary)
     }
 }
 
@@ -621,7 +621,7 @@ public extension SecureStorableResultType {
     }
     
     var data: [String: AnyObject]? {
-        guard let aData = resultDictionary[String(kSecValueData)] as? NSData else {
+        guard let aData = resultDictionary[String(kSecValueData)] as? Data else {
             return nil
         }
         
